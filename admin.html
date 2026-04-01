@@ -149,6 +149,12 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/inspections`, { cache: 'no-store' });
                 const rawReports = await response.json(); 
+                // --- NEW: FORCE THE UI TO REVEAL THE BACKEND ERROR ---
+                if (!response.ok || rawReports.error) {
+                    const errorMsg = rawReports.error || "Unknown Server Error";
+                    tableBody.innerHTML = `<tr><td colspan="5" style="padding: 12px; color:red; font-weight:bold;">Backend Error: ${errorMsg}</td></tr>`;
+                    return; // Stop running the code so it doesn't crash!
+                }
 
                 // 1. DATA TRANSFORMATION: Group multiple defects into single rows
                 const groupedReports = {};
