@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisor Dashboard - Glass Inspection</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* A few extra styles just for the admin table */
+        body { padding: 40px; max-width: 1200px; margin: auto; }
+        .admin-container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f4f7f6; color: #333; }
+        .status-ok { color: green; font-weight: bold; }
+        .status-ng { color: red; font-weight: bold; }
+        .flex-header { display: flex; justify-content: space-between; align-items: center; }
+        /* --- Worker Status Badges --- */
+        .worker-badge {
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f0f0f0;
+            color: #777;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+        .worker-badge.online {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-color: #4caf50;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+        .worker-badge.online .status-dot {
+            background: #4caf50;
+            box-shadow: 0 0 8px #4caf50; /* Glowing effect */
+        }
+        .last-active-text {
+            font-size: 11px;
+            font-weight: normal;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <button class="menu-btn" onclick="toggleMenu()">☰</button>
+
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h3 style="margin: 0;">Admin Panel</h3>
+            <button class="close-btn" onclick="toggleMenu()">×</button>
+        </div>
+        
+        <a href="#" onclick="switchTab('activity')">📊 Production Activity</a>
+        <a href="#" onclick="switchTab('online')">🟢 Live Online Status</a>
+        <a href="#" onclick="switchTab('registration')">👤 Register Personnel</a>
+        
+        <div class="sidebar-footer">
+            <button class="logout-btn" style="border-color: #e74c3c; color: #e74c3c; width: 100%;" onclick="adminLogout()">Log Out</button>
+        </div>
+    </div>
+
+    <div class="admin-wrapper">
+        
+        <div id="section-activity" class="admin-section">
+            <div class="flex-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>Live Production Reports</h2>
+                <div>
+                    <button class="submit-btn" style="width: auto; padding: 10px 20px; background-color: #4CAF50; margin-right: 10px;" onclick="exportToCSV()">Export to Excel (CSV)</button>
+                    <button class="submit-btn" style="width: auto; padding: 10px 20px;" onclick="loadReports()">Refresh Data</button>
+                </div>
+            </div>
+            <table class="data-table" style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <thead>
+                    <tr style="background: #2196f3; color: white; text-align: left;">
+                        <th style="padding: 12px;">Time</th>
+                        <th style="padding: 12px;">Model ID</th>
+                        <th style="padding: 12px;">Worker</th>
+                        <th style="padding: 12px;">Status</th>
+                        <th style="padding: 12px;">Flaws Detected</th>
+                    </tr>
+                </thead>
+                <tbody id="report-table-body">
+                    <tr><td colspan="5" style="padding: 12px;">Loading data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="section-online" class="admin-section hidden">
+            <div class="flex-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>Live Factory Floor Status</h2>
+                <button class="submit-btn" style="width: auto; padding: 10px 20px;" onclick="loadWorkers()">Refresh Status</button>
+            </div>
+            <div id="active-workers-container" style="display: flex; gap: 15px; flex-wrap: wrap; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <p style="color: #666;">Loading worker status...</p>
+            </div>
+        </div>
+
+        <div id="section-registration" class="admin-section hidden">
+            <h2>Add New Factory Personnel</h2>
+            <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="newWorkerId" placeholder="Worker ID (e.g., W-1050)" style="flex: 1; min-width: 150px; padding: 10px;">
+                <input type="text" id="newWorkerName" placeholder="Full Name" style="flex: 2; min-width: 200px; padding: 10px;">
+                
+                <select id="newWorkerRole" style="flex: 1; min-width: 150px; padding: 10px;" onchange="togglePasswordField()">
+                    <option value="operator">Operator</option>
+                    <option value="supervisor">Supervisor</option>
+                </select>
+                
+                <input type="password" id="newWorkerPassword" placeholder="Set Password" class="hidden" style="flex: 1; min-width: 150px; padding: 10px;">
+                
+                <button class="submit-btn" style="width: auto; padding: 10px 25px; margin: 0;" onclick="createNewWorker()">Create Account</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+
+        // --- ROUTE PROTECTION (THE BOUNCER) ---
+        // Run this immediately before rendering the page
+        const savedRole = localStorage.getItem('userRole');
+        
+        if (savedRole !== 'supervisor') {
+            // Kick them back to the login screen!
+            alert("Unauthorized Access. Redirecting to login.");
+            window.location.href = 'index.html';
+        }
+        // --------------------------------------
+        // ... rest of your admin scripts
+        const API_BASE_URL = 'https://checksheet-api-xby9.onrender.com/api';
+        
+        // NEW: A global variable to hold the data so our export function can access it
+        let currentReports = []; 
+
+        // --- UPGRADED: Fetch and display reports with Mini-Grids ---
+        async function loadReports() {
+            const tableBody = document.getElementById('report-table-body');
+            tableBody.innerHTML = '<tr><td colspan="5" style="padding: 12px;">Loading real-time data...</td></tr>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspections`, { cache: 'no-store' });
+                const rawReports = await response.json(); 
+
+                // 1. DATA TRANSFORMATION: Group multiple defects into single rows
+                const groupedReports = {};
+                
+                rawReports.forEach(row => {
+                    // If we haven't seen this inspection ID yet, create a master record for it
+                    if (!groupedReports[row.id]) {
+                        groupedReports[row.id] = {
+                            id: row.id,
+                            time: row.created_at,
+                            model: row.model_id,
+                            workerName: row.worker_name,
+                            workerId: row.worker_id,
+                            status: row.status,
+                            defects: [] // Array to hold the shopping cart of flaws
+                        };
+                    }
+                    // If this row has a defect, push it into the array
+                    if (row.grid_location) {
+                        groupedReports[row.id].defects.push({
+                            zone: row.grid_location,
+                            flaws: row.flaw_type,
+                            desc: row.custom_description
+                        });
+                    }
+                });
+
+                // Convert our grouped object back into an array so we can loop through it
+                currentReports = Object.values(groupedReports);
+                currentReports.sort((a, b) => new Date(b.time) - new Date(a.time));
+                tableBody.innerHTML = ''; 
+
+                if (currentReports.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="5" style="padding: 12px;">No inspections recorded yet.</td></tr>';
+                    return;
+                }
+
+                // 2. BUILD THE UI
+                currentReports.forEach(report => {
+                    const timeString = new Date(report.time).toLocaleString();
+                    
+                    let flawHtml = '<span style="color: #888;">None</span>';
+                    
+                    if (report.status === 'NG') {
+                        // A. Build the Mini Grid
+                        let gridHtml = '<div class="mini-glass-container">';
+                        for (let i = 1; i <= 12; i++) {
+                            // Check if this zone number exists in our defects array
+                            const hasDefect = report.defects.some(d => d.zone === i);
+                            gridHtml += `<div class="mini-grid-zone ${hasDefect ? 'has-defect' : ''}"></div>`;
+                        }
+                        gridHtml += '</div>';
+
+                        // B. Build the text list of flaws
+                        let textHtml = '<div style="display: flex; flex-direction: column; justify-content: center; gap: 4px; font-size: 13px;">';
+                        report.defects.forEach(d => {
+                            const descText = d.desc ? ` <em>(${d.desc})</em>` : '';
+                            textHtml += `<div><strong style="color: #d32f2f;">Zone ${d.zone}:</strong> ${d.flaws}${descText}</div>`;
+                        });
+                        textHtml += '</div>';
+
+                        // Combine them side-by-side
+                        flawHtml = `<div style="display: flex; align-items: center;">${gridHtml}${textHtml}</div>`;
+                    }
+
+                    // C. Create the Table Row
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = "1px solid #eee";
+                    tr.innerHTML = `
+                        <td style="padding: 12px;">${timeString}</td>
+                        <td style="padding: 12px; font-weight: bold;">${report.model}</td>
+                        <td style="padding: 12px;">${report.workerName} <br><small style="color: #777;">${report.workerId}</small></td>
+                        <td style="padding: 12px;">
+                            <span style="padding: 5px 10px; border-radius: 15px; font-weight: bold; color: white; background: ${report.status === 'OK' ? '#4CAF50' : '#f44336'};">
+                                ${report.status}
+                            </span>
+                        </td>
+                        <td style="padding: 12px;">${flawHtml}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+
+            } catch (error) {
+                console.error("Error:", error);
+                tableBody.innerHTML = '<tr><td colspan="5" style="padding: 12px; color:red;">Error connecting to server.</td></tr>';
+            }
+        }
+
+        // --- UI NAVIGATION LOGIC ---
+        function toggleMenu() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function switchTab(tabName) {
+            // 1. Hide all sections
+            document.getElementById('section-activity').classList.add('hidden');
+            document.getElementById('section-online').classList.add('hidden');
+            document.getElementById('section-registration').classList.add('hidden');
+
+            // 2. Show the clicked section
+            document.getElementById(`section-${tabName}`).classList.remove('hidden');
+
+            // 3. Auto-refresh data based on what tab they opened
+            if (tabName === 'activity') loadReports();
+            if (tabName === 'online') loadWorkers();
+
+            // 4. Close the sidebar on mobile so it doesn't block the view
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        // NEW: The function to generate and download the CSV
+        // --- UPGRADED: Export to CSV (Handles Multiple Defects) ---
+        function exportToCSV() {
+            if (!currentReports || currentReports.length === 0) {
+                alert("No data available to export!");
+                return;
+            }
+
+            // 1. Create the CSV Header Row
+            let csvContent = "Time,Model ID,Worker Name,Worker ID,Status,Grid Zone,Flaw Type,Custom Description\n";
+
+            // 2. Loop through the saved grouped data
+            currentReports.forEach(report => {
+                // Notice we are using the new property names from the grouped data!
+                const time = new Date(report.time).toLocaleString().replace(/,/g, ""); 
+                const model = report.model;
+                const wName = report.workerName.replace(/,/g, "");
+                const wId = report.workerId;
+                const status = report.status;
+
+                // 3. Handle the rows based on status
+                if (status === 'OK' || !report.defects || report.defects.length === 0) {
+                    // If it's OK, we just output a single clean row with N/A for the flaws
+                    csvContent += `${time},${model},${wName},${wId},${status},N/A,N/A,N/A\n`;
+                } else {
+                    // If it's NG, we loop through the shopping cart of defects
+                    // This creates a separate row for EACH damage zone, which is perfect for Excel Pivot Tables!
+                    report.defects.forEach(d => {
+                        const zone = d.zone;
+                        // Replace commas with an ampersand so it doesn't break the CSV columns (e.g., "Crack & Scratch")
+                        const flaw = d.flaws ? d.flaws.replace(/,/g, " &") : "N/A";
+                        const desc = d.desc ? d.desc.replace(/,/g, " ") : "N/A";
+
+                        csvContent += `${time},${model},${wName},${wId},${status},${zone},${flaw},${desc}\n`;
+                    });
+                }
+            });
+
+            // 4. Create the hidden download link and click it
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            const dateToday = new Date().toISOString().split('T')[0];
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Inspection_Report_${dateToday}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+// Show/Hide password field based on role selection
+        function togglePasswordField() {
+            const role = document.getElementById('newWorkerRole').value;
+            const pwdField = document.getElementById('newWorkerPassword');
+            
+            if (role === 'supervisor') {
+                pwdField.classList.remove('hidden');
+            } else {
+                pwdField.classList.add('hidden');
+                pwdField.value = ''; // Clear it out for security
+            }
+        }
+
+        // Send the new worker data to the database
+        async function createNewWorker() {
+            const workerId = document.getElementById('newWorkerId').value.trim();
+            const name = document.getElementById('newWorkerName').value.trim();
+            const role = document.getElementById('newWorkerRole').value;
+            const password = document.getElementById('newWorkerPassword').value.trim();
+
+            // 1. Frontend Validation
+            if (!workerId || !name) {
+                alert("Please enter both a Worker ID and a Full Name.");
+                return;
+            }
+            if (role === 'supervisor' && !password) {
+                alert("Supervisors require a password to log in.");
+                return;
+            }
+
+            // 2. Send to API
+            try {
+                const response = await fetch(`${API_BASE_URL}/workers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workerId, name, role, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // 3. Success! Alert the user and clear the form
+                    alert(`Success: ${name} (${workerId}) has been added to the system!`);
+                    
+                    document.getElementById('newWorkerId').value = '';
+                    document.getElementById('newWorkerName').value = '';
+                    document.getElementById('newWorkerPassword').value = '';
+                    document.getElementById('newWorkerRole').value = 'operator';
+                    togglePasswordField(); 
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error("Network Error:", error);
+                alert("Failed to connect to the server.");
+            }
+        }
+        window.onload = function() {
+        loadReports();
+        loadWorkers();
+        };
+// --- BULLETPROOF SUPERVISOR LOGOUT ---
+        async function adminLogout() {
+            const workerId = localStorage.getItem('activeWorkerId');
+            
+            if (workerId) {
+                try {
+                    console.log(`Sending logout signal for ${workerId}...`);
+                    
+                    // 1. Send the signal and WAIT for the exact response
+                    const response = await fetch(`${API_BASE_URL}/logout`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ workerId: workerId })
+                    });
+                    
+                    // 2. Force the browser to process the JSON reply so it doesn't close the connection early
+                    const data = await response.json();
+                    console.log("Server response:", data);
+                    
+                } catch(e) { 
+                    console.error("Error setting offline status:", e); 
+                }
+            }
+
+            // 3. Clear the browser memory
+            localStorage.removeItem('activeWorkerId');
+            localStorage.removeItem('userRole');
+            
+            // 4. Safely redirect back to the login screen
+            window.location.href = 'index.html';
+        }
+    // --- NEW: Fetch and display active workers ---
+        async function loadWorkers() {
+            const container = document.getElementById('active-workers-container');
+            container.innerHTML = '<p>Loading...</p>';
+
+            try {
+                // Fetch data from our existing Node.js endpoint!
+                const response = await fetch(`${API_BASE_URL}/workers`, { cache: 'no-store' });
+                const workers = await response.json();
+
+                container.innerHTML = ''; // Clear loading text
+
+                if (workers.length === 0) {
+                    container.innerHTML = '<p>No workers found in the database.</p>';
+                    return;
+                }
+
+                workers.forEach(worker => {
+                    // Check if MariaDB says they are online
+                    // (MariaDB stores booleans as 1 or 0, so we check if it equals 1)
+                    const isOnline = worker.is_online === 1; 
+                    
+                    // Format their last active time
+                    let timeText = "Never";
+                    if (worker.last_active) {
+                        const timeObj = new Date(worker.last_active);
+                        timeText = timeObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+
+                    // Build the HTML badge
+                    const badge = document.createElement('div');
+                    badge.className = `worker-badge ${isOnline ? 'online' : ''}`;
+                    
+                    badge.innerHTML = `
+                        <div class="status-dot"></div>
+                        <div>
+                            <div>${worker.name} (${worker.worker_id})</div>
+                            <div class="last-active-text">Last Active: ${timeText}</div>
+                        </div>
+                    `;
+                    
+                    container.appendChild(badge);
+                });
+
+            } catch (error) {
+                console.error("Error:", error);
+                container.innerHTML = '<p style="color:red;">Error connecting to server.</p>';
+            }
+        }
+    </script>
+</body>
+</html>

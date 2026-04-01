@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factory Login - NSG Terminal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="animated-bg">
+    <div class="bg-grid"></div>
+    <div class="bg-orb"></div>
+
+    <div id="login-screen" class="login-wrapper">
+        <div class="login-card fade-in-up">
+            
+            <div class="logo-container">
+                <img src="msg.svg" alt="NSG Logo" class="company-logo" onerror="this.style.display='none'">
+                <h2 class="glow-text">Final Inspection</h2>
+            </div>
+                    
+            <div class="form-group">
+                <label for="loginId" class="input-label">Worker ID</label>
+                <div class="input-icon-wrapper">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <input type="text" id="loginId" placeholder="   " class="large-input with-icon" autocomplete="off" onkeypress="handleEnter(event)">
+                </div>
+            </div>
+
+            <div class="form-group hidden" id="password-group">
+                <label for="loginPassword" class="input-label">Supervisor Password</label>
+                <div class="input-icon-wrapper">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <input type="password" id="loginPassword" placeholder="Enter password" class="large-input with-icon" onkeypress="handleEnter(event)">
+                </div>
+            </div>
+
+            <button id="loginBtn" class="submit-btn login-btn" onclick="executeLogin()">
+                <span id="btn-text">INITIALIZE LINK</span>
+                <span id="btn-spinner" class="loader hidden"></span>
+            </button>
+        </div>
+    </div>
+
+    <script src="login.js"></script>
+</body>
+</html>

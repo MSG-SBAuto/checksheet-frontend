@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Inspection Checksheet</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script>
+        if (!localStorage.getItem('activeWorkerId') || localStorage.getItem('userRole') !== 'operator') {
+            window.location.href = 'index.html';
+        }
+    </script>
+</head>
+<body>
+
+    <div class="card">
+        <div class="header-bar">
+            <h2>Glass Quality Check</h2>
+            <div class="badge">ID: <span id="display-worker-id"></span></div>
+        </div>
+
+        <div class="form-group">
+            <label for="modelId">Glass Model ID / Part Number:</label>
+            <input type="text" id="modelId" placeholder="Scan or type (e.g., GL-2024-X)">
+        </div>
+
+        <div class="form-group">
+            <label>Inspection Status:</label>
+            <div class="button-group">
+                <button type="button" id="btn-ok" class="status-btn active-ok" onclick="setStatus('OK')">OK</button>
+                <button type="button" id="btn-ng" class="status-btn" onclick="setStatus('NG')">NG</button>
+            </div>
+        </div>
+
+        <div id="ng-section" class="hidden">
+            <h3>Select Flaw Locations</h3>
+            <p>Tap a grid sector, then select its flaws. You can tap multiple sectors.</p>
+            
+            <div class="glass-container" id="glass-grid">
+                </div>
+
+            <div id="flaw-input-section" class="hidden" style="background: #e3f2fd; padding: 15px; border-radius: 8px; border: 1px solid #90caf9; margin-bottom: 15px;">
+                <h4 id="current-zone-title" style="margin-top: 0; color: #1565c0;">Select Flaws</h4>
+                
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Scratch 1" onchange="saveZoneData()"> Scratch 1</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Scratch 2" onchange="saveZoneData()"> Scratch 2</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Scratch 3" onchange="saveZoneData()"> Scratch 3</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Scratch 4" onchange="saveZoneData()"> Scratch 4</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Lint" onchange="saveZoneData()"> Lint</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Dirt" onchange="saveZoneData()"> Dirt</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Masking Out" onchange="saveZoneData()"> Masking Out</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Paste Out" onchange="saveZoneData()"> Paste Out</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Pin Hole" onchange="saveZoneData()"> Pin Hole</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Paste Scratch" onchange="saveZoneData()"> Paste Scratch</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Curvature out" onchange="saveZoneData()"> Curvature out</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Short Film" onchange="saveZoneData()"> Short Film</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Film Bubble" onchange="saveZoneData()"> Film Bubble</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Slipped" onchange="saveZoneData()"> Slipped</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Chip Shell" onchange="saveZoneData()"> Chip Shell</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Breakage" onchange="saveZoneData()"> Breakage</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Crack" onchange="saveZoneData()"> Crack</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Size Out" onchange="saveZoneData()"> Size Out</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Mark Out" onchange="saveZoneData()"> Mark Out</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="RGD" onchange="saveZoneData()"> RGD</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Cullet" onchange="saveZoneData()"> Cullet</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Stain" onchange="saveZoneData()"> Stain</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Wavy" onchange="saveZoneData()"> Wavy</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Wrong Sticker" onchange="saveZoneData()"> Wrong Sticker</label>
+                        <label class="checkbox-label"><input type="checkbox" class="flaw-checkbox" value="Other" onchange="saveZoneData()"> Others</label>
+                    </div>
+                </div>
+
+                <div class="form-group hidden" id="custom-flaw-group">
+                    <input type="text" id="customFlaw" placeholder="Describe the flaw..." onkeyup="saveZoneData()">
+                </div>
+            </div>
+        </div>
+
+        <button class="submit-btn" onclick="submitChecksheet()">Submit Report</button>
+
+        <button class="logout-btn" onclick="logoutWorker()">Log Out</button>
+    </div>
+
+    <script src="checksheet.js"></script>
+</body>
+</html>
