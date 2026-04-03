@@ -274,13 +274,14 @@
             }
 
             // 1. Create the CSV Header Row
-            let csvContent = "Time,Model ID,Worker Name,Worker ID,Status,Grid Zone,Flaw Type,Custom Description\n";
+            let csvContent = "Time,Model ID,Inspection ID,Worker Name,Worker ID,Status,Grid Zone,Flaw Type,Custom Description\n";
 
             // 2. Loop through the saved grouped data
             currentReports.forEach(report => {
                 // Notice we are using the new property names from the grouped data!
                 const time = new Date(report.time).toLocaleString().replace(/,/g, ""); 
                 const model = report.model;
+                const id = report.id;
                 const wName = report.workerName.replace(/,/g, "");
                 const wId = report.workerId;
                 const status = report.status;
@@ -288,17 +289,16 @@
                 // 3. Handle the rows based on status
                 if (status === 'OK' || !report.defects || report.defects.length === 0) {
                     // If it's OK, we just output a single clean row with N/A for the flaws
-                    csvContent += `${time},${model},${wName},${wId},${status},N/A,N/A,N/A\n`;
+                    csvContent += `${time},${model},${id},${wName},${wId},${status},N/A,N/A,N/A\n`;
                 } else {
-                    // If it's NG, we loop through the shopping cart of defects
-                    // This creates a separate row for EACH damage zone, which is perfect for Excel Pivot Tables!
+                    // This creates a separate row for EACH damage zone
                     report.defects.forEach(d => {
                         const zone = d.zone;
                         // Replace commas with an ampersand so it doesn't break the CSV columns (e.g., "Crack & Scratch")
                         const flaw = d.flaws ? d.flaws.replace(/,/g, " &") : "N/A";
                         const desc = d.desc ? d.desc.replace(/,/g, " ") : "N/A";
 
-                        csvContent += `${time},${model},${wName},${wId},${status},${zone},${flaw},${desc}\n`;
+                        csvContent += `${time},${model},${id},${wName},${wId},${status},${zone},${flaw},${desc}\n`;
                     });
                 }
             });
