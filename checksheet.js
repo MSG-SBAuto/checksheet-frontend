@@ -1,16 +1,15 @@
 const API_BASE_URL = 'https://checksheet-api-xby9.onrender.com/api';
 
-// --- APPLICATION STATE ---
+// APPLICATION STATE 
 const appState = {
     workerId: localStorage.getItem('activeWorkerId') || '',
     modelId: '',
     status: 'OK',
     currentZone: null,
-    defects: {} // Stores our defects like: { 1: { flaws: "Scratch 1", desc: "" } }
+    defects: {} // Stores our defects: { 1: { flaws: "Scratch 1", desc: "" } }
 };
 
-// --- INITIALIZE PAGE ---
-// This runs the millisecond the page loads
+// INITIALIZE PAGE 
 window.onload = function() {
     // Show the logged-in worker's ID in the top right badge
     document.getElementById('display-worker-id').innerText = appState.workerId;
@@ -21,7 +20,7 @@ window.onload = function() {
 
 function createGrid() {
     const gridContainer = document.getElementById('glass-grid');
-    gridContainer.innerHTML = ''; // Clear it out just in case
+    gridContainer.innerHTML = ''; // Clear it out
 
     for (let i = 1; i <= 12; i++) {
         const zone = document.createElement('div');
@@ -33,7 +32,112 @@ function createGrid() {
     }
 }
 
-// --- UI LOGIC ---
+// BATCH MODEL LOGIC
+
+// The Model Database (Add more here as needed)
+const modelDatabase = {
+    "Perodua": ["D369", "X680", "X690", "KELESA X690", "D79B","D96T","D18B","D46T","D13B","D87D","D87A","D36D","D2GN"],
+    "Honda": ["MN", "UH", "2ZH","WQ","JAZZ","UA","2PX","CRV-KL","CRV-KL(S9A)","2WQ(2WL)","FREED","2PS","ODYSSEY","2ZK",
+    "JAZZ 2009","2WS/2WR","2WF","2XP","2WH/WQ(TOAX)","2CT(AGR)","TEAA","TSAA(BRV)","T9AX(CITY)","TLAA","T2A(2.0)","T2A RSB(2.4)"],
+    "Proton": ["SAGA", "IJOO", "M24","IJOO WIRA","PERDANA PF41","PS8","GX","WRM44/41","SRM","N4 CAR(LMST)","GX(NO TOP SHADE)","TRM44",
+               "GX UV","BLM","EXORA","P321A","IRIZ","P3-12A","P620A(EXORA)"],
+    "Isuzu": ["DMAX","ELF HIGHCAB","ELF","RT50","HIGHT NLR 85","ELF WIDE CAB 2006"],
+    "Ford": ["TRANSIT(VE83)","COURIER UW64/65","RANGERUT2EF/2G","U268 EVEREST","UT5K(RANGER)","J97U / U268","CROWN VICTORIA","FIESTA","FORD RANGER 16"],
+    "Mazda": ["ECONOVAN(VE193)","TRADER(H194)","FORD ESCAPE(ET06)"]
+};
+
+// Cascading Dropdown (Unlocks ID when Make is chosen)
+function updateModelDropdown() {
+    const makeSelect = document.getElementById('carMake');
+    const modelSelect = document.getElementById('carModelId');
+    const selectedMake = makeSelect.value;
+    
+    // Clear existing options
+    modelSelect.innerHTML = '<option value="">-- Select ID --</option>';
+    
+    if (selectedMake && modelDatabase[selectedMake]) {
+        modelSelect.disabled = false; // Turn on the second box
+        modelDatabase[selectedMake].forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            modelSelect.appendChild(option);
+        });
+    } else {
+        modelSelect.disabled = true; // Turn off if they select blank
+    }
+}
+
+// Lock the Batch to Memory
+function lockModel() {
+    const make = document.getElementById('carMake').value;
+    const model = document.getElementById('carModelId').value;
+    
+    if (!make || !model) {
+        alert("Please select both a Make and an ID to start a batch.");
+        return;
+    }
+    
+    const fullModelString = make + " - " + model; 
+    
+    // Save to browser memory so it survives page reloads
+    localStorage.setItem('activeBatchModel', fullModelString);
+    
+    applyLockedModel(fullModelString);
+}
+
+// Unlock the Batch
+function unlockModel() {
+    // Delete from memory
+    localStorage.removeItem('activeBatchModel');
+    document.getElementById('modelId').value = "";
+    
+    // Swap UI back to dropdowns
+    document.getElementById('model-locked-state').classList.add('hidden');
+    document.getElementById('model-unlocked-state').classList.remove('hidden');
+    
+    // Reset dropdowns
+    document.getElementById('carMake').value = "";
+    document.getElementById('carModelId').innerHTML = '<option value="">-- Select ID --</option>';
+    document.getElementById('carModelId').disabled = true;
+}
+
+// Apply the UI Change
+function applyLockedModel(modelString) {
+    // Set the hidden input so your submit function can still find document.getElementById('modelId').value
+    document.getElementById('modelId').value = modelString;
+    
+    // Show the locked text
+    document.getElementById('active-model-display').textContent = modelString;
+    
+    // Swap UI
+    document.getElementById('model-unlocked-state').classList.add('hidden');
+    document.getElementById('model-locked-state').classList.remove('hidden');
+}
+
+// AUTO-LOADER (Runs when the page opens)
+// Checks if a batch was already running and locks it immediately
+document.addEventListener('DOMContentLoaded', () => {
+    const savedModel = localStorage.getItem('activeBatchModel');
+    if (savedModel) {
+        applyLockedModel(savedModel);
+const lastSubMemory = localStorage.getItem('lastSubmissionText');
+    if (lastSubMemory) {
+        const lastSub = JSON.parse(lastSubMemory);
+        document.getElementById('last-submit-worker').innerText = lastSub.worker;
+        
+        // Ensures it doesn't crash if an old memory without a model is loaded
+        if (lastSub.model) {
+            document.getElementById('last-submit-model').innerText = lastSub.model;
+        }
+        
+        document.getElementById('last-submit-time').innerText = lastSub.time;
+        document.getElementById('latest-submission-banner').classList.remove('hidden');
+    }
+    }
+});
+
+// UI LOGIC 
 function setStatus(status) {
     appState.status = status;
     
@@ -85,7 +189,7 @@ function refreshGridVisuals() {
     }
 }
 
-// --- DATA LOGIC ---
+// DATA LOGIC 
 function saveZoneData() {
     if (!appState.currentZone) return;
 
@@ -108,7 +212,7 @@ function saveZoneData() {
     if (selectedFlaws.length === 0) {
         delete appState.defects[appState.currentZone];
     } else {
-        // Otherwise, save it to the state
+        // save it to the state
         appState.defects[appState.currentZone] = {
             flaws: selectedFlaws.join(', '),
             desc: customDescInput.value.trim()
@@ -142,12 +246,15 @@ function loadZoneDataToForm(zoneNumber) {
     }
 }
 
-// --- SERVER COMMUNICATION ---
+// SERVER COMMUNICATION 
 async function submitChecksheet() {
+
+    if (localStorage.getItem('activeBatchModel')) {
+        document.getElementById('modelId').value = localStorage.getItem('activeBatchModel');
+    }
     const modelId = document.getElementById('modelId').value.trim();
-    
     if (!modelId) {
-        alert("Please enter a Model ID.");
+        alert("Please set Model ID.");
         return;
     }
 
@@ -176,9 +283,22 @@ async function submitChecksheet() {
 
         if (response.ok) {
             alert("Inspection saved successfully!");
-            // Reset form for the next piece of glass
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); 
+            
+            document.getElementById('last-submit-worker').innerText = appState.workerId;
+            document.getElementById('last-submit-model').innerText = modelId; 
+            document.getElementById('last-submit-time').innerText = timeString;
+            document.getElementById('latest-submission-banner').classList.remove('hidden');
+            
+            // Save to memory so it survives a page refresh
+            localStorage.setItem('lastSubmissionText', JSON.stringify({ 
+                worker: appState.workerId, model: modelId, time: timeString }));
+            
+            // Reset form
             document.getElementById('modelId').value = '';
             setStatus('OK'); 
+            
         } else {
             const data = await response.json();
             alert(`Error: ${data.error}`);
@@ -189,7 +309,7 @@ async function submitChecksheet() {
     }
 }
 
-// --- SECURE LOGOUT ---
+// SECURE LOGOUT 
 async function logoutWorker() {
     try {
         await fetch(`${API_BASE_URL}/logout`, {
@@ -201,8 +321,9 @@ async function logoutWorker() {
         console.error("Failed to update offline status:", error);
     }
 
-    // Clear browser memory and kick them back to login screen
+    // Clear browser memory and send back to login screen
     localStorage.removeItem('activeWorkerId');
     localStorage.removeItem('userRole');
+   // localStorage.removeItem('activeBatchModel'); // reset the set batch after logout
     window.location.href = 'index.html';
 }
