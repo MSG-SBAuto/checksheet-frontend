@@ -154,15 +154,16 @@
         }
 
         //Fetch, Filter by Date, and Display Reports 
-        async function loadReports() {
+            async function loadReports() {
             const tableBody = document.getElementById('report-table-body');
             tableBody.innerHTML = '<tr><td colspan="5" style="padding: 12px;">Loading real-time data...</td></tr>';
 
-            // date picker
+            // Grab the date from our date picker
             const selectedDate = document.getElementById('reportDate').value;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/inspections`, { cache: 'no-store' });
+                //Send the date directly to the backend URL
+                const response = await fetch(`${API_BASE_URL}/inspections?date=${selectedDate}`, { cache: 'no-store' });
                 const rawReports = await response.json(); 
 
                 if (!response.ok || rawReports.error) {
@@ -171,23 +172,11 @@
                     return; 
                 }
 
-                // DATE FILTERING 
-                const filteredReports = rawReports.filter(row => {
-                    // timestamp into a local YYYY-MM-DD string
-                    const rowDateObj = new Date(row.created_at || row.time); // Depends on your exact DB column name
-                    const year = rowDateObj.getFullYear();
-                    const month = String(rowDateObj.getMonth() + 1).padStart(2, '0');
-                    const day = String(rowDateObj.getDate()).padStart(2, '0');
-                    const formattedRowDate = `${year}-${month}-${day}`;
-
-                    // Only keep rows that match the Date Picker
-                    return formattedRowDate === selectedDate;
-                });
-
-                // Group multiple defects into single rows
+                // Because the backend already filtered the data perfectly, 
+                // we can delete the old Frontend Filter Engine! We just group the rawReports directly.
                 const groupedReports = {};
                 
-                filteredReports.forEach(row => {
+                rawReports.forEach(row => {
                     if (!groupedReports[row.id]) {
                         groupedReports[row.id] = {
                             id: row.id,
