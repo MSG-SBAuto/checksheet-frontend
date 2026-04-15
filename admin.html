@@ -405,6 +405,22 @@
             loadReports();    //  data for today
             loadWorkers();    //  who is online
             startAdminAutoExport();
+
+            setInterval(() => {
+
+                const dateInput = document.getElementById('reportDate').value;
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const formattedToday = `${year}-${month}-${day}`;
+
+                if (dateInput === formattedToday) {
+                    console.log("[System] Auto-refreshing live data...");
+                    loadReports();
+                    loadWorkers();
+                }
+            }, 30000); // 30000 milliseconds = 30 seconds
         };
 
         // LOGOUT LOGIC 
