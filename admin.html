@@ -6,7 +6,7 @@
     <title>Supervisor Dashboard - Glass Inspection</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* A few extra styles just for the admin table */
+        /* styles for the admin table */
         body { padding: 40px; max-width: 1200px; margin: auto; }
         .admin-container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -15,7 +15,7 @@
         .status-ok { color: green; font-weight: bold; }
         .status-ng { color: red; font-weight: bold; }
         .flex-header { display: flex; justify-content: space-between; align-items: center; }
-        /* --- Worker Status Badges --- */
+        /* Worker Status Badges */
         .worker-badge {
             padding: 10px 15px;
             border-radius: 20px;
@@ -71,11 +71,18 @@
     <div class="admin-wrapper">
         
         <div id="section-activity" class="admin-section">
-            <div class="flex-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2>Live Production Reports</h2>
-                <div>
-                    <button class="submit-btn" style="width: auto; padding: 10px 20px; background-color: #4CAF50; margin-right: 10px;" onclick="exportToCSV()">Export to Excel (CSV)</button>
-                    <button class="submit-btn" style="width: auto; padding: 10px 20px;" onclick="loadReports()">Refresh Data</button>
+            <div class="flex-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                <h2 style="margin: 0;">Live Production Reports</h2>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    
+                    <div style="background: white; padding: 5px 10px; border-radius: 5px; border: 1px solid #ccc; display: flex; align-items: center; gap: 10px;">
+                        <label for="reportDate" style="margin: 0; font-weight: bold; color: #555; font-size: 14px;">Select Date:</label>
+                        <input type="date" id="reportDate" style="border: none; outline: none; font-size: 14px; color: #333; cursor: pointer;" onchange="loadReports()">
+                    </div>
+
+                    <button class="submit-btn" style="width: auto; padding: 10px 20px; background-color: #4CAF50; margin: 0;" onclick="exportToCSV()">Export (CSV)</button>
+                    <button class="submit-btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="loadReports()">Refresh</button>
                 </div>
             </div>
             <table class="data-table" style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
@@ -125,54 +132,73 @@
 
     <script>
 
-        // --- ROUTE PROTECTION (THE BOUNCER) ---
-        // Run this immediately before rendering the page
+// ROUTE PROTECTION 
         const savedRole = localStorage.getItem('userRole');
-        
         if (savedRole !== 'supervisor') {
-            // Kick them back to the login screen!
             alert("Unauthorized Access. Redirecting to login.");
             window.location.href = 'index.html';
         }
-        // --------------------------------------
-        // ... rest of your admin scripts
         const API_BASE_URL = 'https://checksheet-api-xby9.onrender.com/api';
-        
-        // NEW: A global variable to hold the data so our export function can access it
         let currentReports = []; 
 
-        // --- UPGRADED: Fetch and display reports with Mini-Grids ---
+        // SET DEFAULT DATE TO TODAY
+        function setDefaultDate() {
+            const dateInput = document.getElementById('reportDate');
+            const today = new Date();
+            
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            
+            dateInput.value = `${year}-${month}-${day}`;
+        }
+
+        //Fetch, Filter by Date, and Display Reports 
         async function loadReports() {
             const tableBody = document.getElementById('report-table-body');
             tableBody.innerHTML = '<tr><td colspan="5" style="padding: 12px;">Loading real-time data...</td></tr>';
 
+            // date picker
+            const selectedDate = document.getElementById('reportDate').value;
+
             try {
                 const response = await fetch(`${API_BASE_URL}/inspections`, { cache: 'no-store' });
                 const rawReports = await response.json(); 
-                // --- NEW: FORCE THE UI TO REVEAL THE BACKEND ERROR ---
+
                 if (!response.ok || rawReports.error) {
                     const errorMsg = rawReports.error || "Unknown Server Error";
                     tableBody.innerHTML = `<tr><td colspan="5" style="padding: 12px; color:red; font-weight:bold;">Backend Error: ${errorMsg}</td></tr>`;
-                    return; // Stop running the code so it doesn't crash!
+                    return; 
                 }
 
-                // 1. DATA TRANSFORMATION: Group multiple defects into single rows
+                // DATE FILTERING 
+                const filteredReports = rawReports.filter(row => {
+                    // timestamp into a local YYYY-MM-DD string
+                    const rowDateObj = new Date(row.created_at || row.time); // Depends on your exact DB column name
+                    const year = rowDateObj.getFullYear();
+                    const month = String(rowDateObj.getMonth() + 1).padStart(2, '0');
+                    const day = String(rowDateObj.getDate()).padStart(2, '0');
+                    const formattedRowDate = `${year}-${month}-${day}`;
+
+                    // Only keep rows that match the Date Picker
+                    return formattedRowDate === selectedDate;
+                });
+
+                // Group multiple defects into single rows
                 const groupedReports = {};
                 
-                rawReports.forEach(row => {
-                    // If we haven't seen this inspection ID yet, create a master record for it
+                filteredReports.forEach(row => {
                     if (!groupedReports[row.id]) {
                         groupedReports[row.id] = {
                             id: row.id,
-                            time: row.created_at,
+                            time: row.created_at || row.time,
                             model: row.model_id,
                             workerName: row.worker_name,
                             workerId: row.worker_id,
                             status: row.status,
-                            defects: [] // Array to hold the shopping cart of flaws
+                            defects: [] 
                         };
                     }
-                    // If this row has a defect, push it into the array
                     if (row.grid_location) {
                         groupedReports[row.id].defects.push({
                             zone: row.grid_location,
@@ -182,33 +208,29 @@
                     }
                 });
 
-                // Convert our grouped object back into an array so we can loop through it
                 currentReports = Object.values(groupedReports);
                 currentReports.sort((a, b) => new Date(b.time) - new Date(a.time));
                 tableBody.innerHTML = ''; 
 
                 if (currentReports.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="5" style="padding: 12px;">No inspections recorded yet.</td></tr>';
+                    tableBody.innerHTML = `<tr><td colspan="5" style="padding: 12px; text-align: center;">No inspections recorded for ${selectedDate}.</td></tr>`;
                     return;
                 }
 
-                // 2. BUILD THE UI
+                // BUILD THE UI
                 currentReports.forEach(report => {
-                    const timeString = new Date(report.time).toLocaleString();
+                    const timeString = new Date(report.time).toLocaleTimeString(); // Only show Time, date already shown
                     
                     let flawHtml = '<span style="color: #888;">None</span>';
                     
                     if (report.status === 'NG') {
-                        // A. Build the Mini Grid
                         let gridHtml = '<div class="mini-glass-container">';
                         for (let i = 1; i <= 12; i++) {
-                            // Check if this zone number exists in our defects array
                             const hasDefect = report.defects.some(d => d.zone === i);
                             gridHtml += `<div class="mini-grid-zone ${hasDefect ? 'has-defect' : ''}"></div>`;
                         }
                         gridHtml += '</div>';
 
-                        // B. Build the text list of flaws
                         let textHtml = '<div style="display: flex; flex-direction: column; justify-content: center; gap: 4px; font-size: 13px;">';
                         report.defects.forEach(d => {
                             const descText = d.desc ? ` <em>(${d.desc})</em>` : '';
@@ -216,11 +238,9 @@
                         });
                         textHtml += '</div>';
 
-                        // Combine them side-by-side
                         flawHtml = `<div style="display: flex; align-items: center;">${gridHtml}${textHtml}</div>`;
                     }
 
-                    // C. Create the Table Row
                     const tr = document.createElement('tr');
                     tr.style.borderBottom = "1px solid #eee";
                     tr.innerHTML = `
@@ -243,82 +263,90 @@
             }
         }
 
-        // --- UI NAVIGATION LOGIC ---
+        // UI NAVIGATION LOGIC 
         function toggleMenu() {
             document.getElementById('sidebar').classList.toggle('open');
         }
 
         function switchTab(tabName) {
-            // 1. Hide all sections
             document.getElementById('section-activity').classList.add('hidden');
             document.getElementById('section-online').classList.add('hidden');
             document.getElementById('section-registration').classList.add('hidden');
 
-            // 2. Show the clicked section
             document.getElementById(`section-${tabName}`).classList.remove('hidden');
 
-            // 3. Auto-refresh data based on what tab they opened
             if (tabName === 'activity') loadReports();
             if (tabName === 'online') loadWorkers();
 
-            // 4. Close the sidebar on mobile so it doesn't block the view
             document.getElementById('sidebar').classList.remove('open');
         }
 
-        // NEW: The function to generate and download the CSV
-        // --- UPGRADED: Export to CSV (Handles Multiple Defects) ---
-        function exportToCSV() {
+        // Export to CSV 
+        function exportToCSV(shiftInfo = null) {
             if (!currentReports || currentReports.length === 0) {
                 alert("No data available to export!");
                 return;
             }
 
-            // 1. Create the CSV Header Row
-            let csvContent = "Time,Model ID,Inspection ID,Worker Name,Worker ID,Status,Grid Zone,Flaw Type,Custom Description\n";
+            // Filter the data if this is an automated shift export
+            let dataToExport = currentReports;
+            let fileNameSuffix = "";
 
-            // 2. Loop through the saved grouped data
-            currentReports.forEach(report => {
-                // Notice we are using the new property names from the grouped data!
+            if (shiftInfo) {
+                dataToExport = currentReports.filter(report => {
+                    // Convert the report time into a mathematical timestamp
+                    const reportTime = new Date(report.time).getTime();
+                    return reportTime >= shiftInfo.start.getTime() && reportTime <= shiftInfo.end.getTime();
+                });
+
+                // if no work, don't download
+                if (dataToExport.length === 0) {
+                    console.log(`[Auto-Export] No data found for ${shiftInfo.name}. Skipping file generation.`);
+                    return; 
+                }
+                
+                // Add the shift name to the file name
+                fileNameSuffix = `_${shiftInfo.name}`;
+            }
+
+            // Build the CSV Content
+            let csvContent = "Time,Model ID,Worker Name,Worker ID,Status,Grid Zone,Flaw Type,Custom Description\n";
+
+            dataToExport.forEach(report => {
                 const time = new Date(report.time).toLocaleString().replace(/,/g, ""); 
                 const model = report.model;
-                const id = report.id;
                 const wName = report.workerName.replace(/,/g, "");
                 const wId = report.workerId;
                 const status = report.status;
 
-                // 3. Handle the rows based on status
                 if (status === 'OK' || !report.defects || report.defects.length === 0) {
-                    // If it's OK, we just output a single clean row with N/A for the flaws
-                    csvContent += `${time},${model},${id},${wName},${wId},${status},N/A,N/A,N/A\n`;
+                    csvContent += `${time},${model},${wName},${wId},${status},N/A,N/A,N/A\n`;
                 } else {
-                    // This creates a separate row for EACH damage zone
                     report.defects.forEach(d => {
                         const zone = d.zone;
-                        // Replace commas with an ampersand so it doesn't break the CSV columns (e.g., "Crack & Scratch")
                         const flaw = d.flaws ? d.flaws.replace(/,/g, " &") : "N/A";
                         const desc = d.desc ? d.desc.replace(/,/g, " ") : "N/A";
-
-                        csvContent += `${time},${model},${id},${wName},${wId},${status},${zone},${flaw},${desc}\n`;
+                        csvContent += `${time},${model},${wName},${wId},${status},${zone},${flaw},${desc}\n`;
                     });
                 }
             });
 
-            // 4. Create the hidden download link and click it
+            // Download the file
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
             
-            const dateToday = new Date().toISOString().split('T')[0];
+            const dateSelected = document.getElementById('reportDate').value;
             
             link.setAttribute("href", url);
-            link.setAttribute("download", `Inspection_Report_${dateToday}.csv`);
+            link.setAttribute("download", `Inspection_Report_${dateSelected}${fileNameSuffix}.csv`);
             link.style.visibility = 'hidden';
             
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
-// Show/Hide password field based on role selection
+
         function togglePasswordField() {
             const role = document.getElementById('newWorkerRole').value;
             const pwdField = document.getElementById('newWorkerPassword');
@@ -327,18 +355,16 @@
                 pwdField.classList.remove('hidden');
             } else {
                 pwdField.classList.add('hidden');
-                pwdField.value = ''; // Clear it out for security
+                pwdField.value = ''; 
             }
         }
 
-        // Send the new worker data to the database
         async function createNewWorker() {
             const workerId = document.getElementById('newWorkerId').value.trim();
             const name = document.getElementById('newWorkerName').value.trim();
             const role = document.getElementById('newWorkerRole').value;
             const password = document.getElementById('newWorkerPassword').value.trim();
 
-            // 1. Frontend Validation
             if (!workerId || !name) {
                 alert("Please enter both a Worker ID and a Full Name.");
                 return;
@@ -348,7 +374,6 @@
                 return;
             }
 
-            // 2. Send to API
             try {
                 const response = await fetch(`${API_BASE_URL}/workers`, {
                     method: 'POST',
@@ -359,9 +384,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    // 3. Success! Alert the user and clear the form
                     alert(`Success: ${name} (${workerId}) has been added to the system!`);
-                    
                     document.getElementById('newWorkerId').value = '';
                     document.getElementById('newWorkerName').value = '';
                     document.getElementById('newWorkerPassword').value = '';
@@ -375,52 +398,43 @@
                 alert("Failed to connect to the server.");
             }
         }
+
+        // PAGE INITIALIZATION 
         window.onload = function() {
-        loadReports();
-        loadWorkers();
+            setDefaultDate(); //  date box to today
+            loadReports();    //  data for today
+            loadWorkers();    //  who is online
+            startAdminAutoExport();
         };
-// --- BULLETPROOF SUPERVISOR LOGOUT ---
+
+        // LOGOUT LOGIC 
         async function adminLogout() {
             const workerId = localStorage.getItem('activeWorkerId');
-            
             if (workerId) {
                 try {
-                    console.log(`Sending logout signal for ${workerId}...`);
-                    
-                    // 1. Send the signal and WAIT for the exact response
-                    const response = await fetch(`${API_BASE_URL}/logout`, {
+                    await fetch(`${API_BASE_URL}/logout`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ workerId: workerId })
                     });
-                    
-                    // 2. Force the browser to process the JSON reply so it doesn't close the connection early
-                    const data = await response.json();
-                    console.log("Server response:", data);
-                    
                 } catch(e) { 
                     console.error("Error setting offline status:", e); 
                 }
             }
-
-            // 3. Clear the browser memory
             localStorage.removeItem('activeWorkerId');
             localStorage.removeItem('userRole');
-            
-            // 4. Safely redirect back to the login screen
             window.location.href = 'index.html';
         }
-    // --- NEW: Fetch and display active workers ---
+
         async function loadWorkers() {
             const container = document.getElementById('active-workers-container');
             container.innerHTML = '<p>Loading...</p>';
 
             try {
-                // Fetch data from our existing Node.js endpoint!
                 const response = await fetch(`${API_BASE_URL}/workers`, { cache: 'no-store' });
                 const workers = await response.json();
 
-                container.innerHTML = ''; // Clear loading text
+                container.innerHTML = ''; 
 
                 if (workers.length === 0) {
                     container.innerHTML = '<p>No workers found in the database.</p>';
@@ -428,18 +442,14 @@
                 }
 
                 workers.forEach(worker => {
-                    // Check if MariaDB says they are online
-                    // (MariaDB stores booleans as 1 or 0, so we check if it equals 1)
                     const isOnline = worker.is_online === 1; 
                     
-                    // Format their last active time
                     let timeText = "Never";
                     if (worker.last_active) {
                         const timeObj = new Date(worker.last_active);
                         timeText = timeObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     }
 
-                    // Build the HTML badge
                     const badge = document.createElement('div');
                     badge.className = `worker-badge ${isOnline ? 'online' : ''}`;
                     
@@ -450,7 +460,6 @@
                             <div class="last-active-text">Last Active: ${timeText}</div>
                         </div>
                     `;
-                    
                     container.appendChild(badge);
                 });
 
@@ -458,6 +467,67 @@
                 console.error("Error:", error);
                 container.innerHTML = '<p style="color:red;">Error connecting to server.</p>';
             }
+        }
+
+        // ADMIN DASHBOARD AUTO-EXPORTER
+        // This memory lock prevents duplicate downloads
+        let lastExportedShiftKey = "";
+
+        function startAdminAutoExport() {
+            // Check every 10 seconds 
+            setInterval(() => {
+                const now = new Date();
+                const hours = now.getHours();
+                const minutes = now.getMinutes();
+
+                //  Give the browser a generous 5-minute window to wake up and trigger
+                const isShiftAWindow = (hours === 15 && minutes < 5); // 3:00 PM - 3:04 PM
+                const isShiftBWindow = (hours === 23 && minutes < 5); // 11:00 PM - 11:04 PM
+                const isShiftCWindow = (hours === 7  && minutes < 5); // 7:00 AM - 7:04 AM
+
+                let shiftName = "";
+                if (isShiftAWindow) shiftName = "Shift_A";
+                else if (isShiftBWindow) shiftName = "Shift_B";
+                else if (isShiftCWindow) shiftName = "Shift_C";
+
+                // unique lock code for today 
+                const todayLockKey = now.toLocaleDateString() + "_" + shiftName;
+
+                // If we are in a shift window AND we haven't exported it yet today
+                if (shiftName !== "" && lastExportedShiftKey !== todayLockKey) {
+                    console.log(`[Auto-Export] Woke up in ${shiftName} window. Exporting now!`);
+                    
+                    // Immediately lock it so it doesn't download again for the next 5 minutes
+                    lastExportedShiftKey = todayLockKey;
+                    
+                    // Build the exact Time Boundaries
+                    let startTime = new Date(); 
+                    let endTime = new Date();
+                    
+                    if (shiftName === "Shift_A") {
+                        startTime.setHours(7, 0, 0, 0);    
+                        endTime.setHours(14, 59, 59, 999); 
+                    } else if (shiftName === "Shift_B") {
+                        startTime.setHours(15, 0, 0, 0);   
+                        endTime.setHours(22, 59, 59, 999); 
+                    } else if (shiftName === "Shift_C") {
+                        startTime.setDate(startTime.getDate() - 1); 
+                        startTime.setHours(23, 0, 0, 0);   
+                        endTime.setHours(6, 59, 59, 999);  
+                    }
+
+                    const shiftInfo = { name: shiftName, start: startTime, end: endTime };
+
+                    // Fetch the data and Export
+                    setDefaultDate(); 
+                    
+                    loadReports().then(() => {
+                        setTimeout(() => {
+                            exportToCSV(shiftInfo); 
+                        }, 2000);
+                    });
+                }
+            }, 10000); 
         }
     </script>
 </body>
