@@ -87,48 +87,7 @@ async function loginWorker() {
     }
 }
 
-// ==========================================
-// --- INTERACTIVE UI EFFECTS ---
-// ==========================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    const card = document.querySelector('.login-card');
-    const wrapper = document.querySelector('.login-wrapper');
-
-    // 1. 3D Hover/Tilt Effect for the Glass Card
-    // Makes the card physically react to the mouse cursor
-    wrapper.addEventListener('mousemove', (e) => {
-        // Calculate mouse position relative to the center of the screen
-        let xAxis = (window.innerWidth / 2 - e.pageX) / 40; 
-        let yAxis = (window.innerHeight / 2 - e.pageY) / 40;
-        
-        // Apply the 3D rotation
-        card.style.transform = `perspective(1000px) rotateY(${xAxis}deg) rotateX(${yAxis}deg) translateY(0)`;
-        card.style.transition = 'none'; // Remove transition so it tracks instantly
-    });
-
-    // Reset the card smoothly when the mouse leaves
-    wrapper.addEventListener('mouseleave', () => {
-        card.style.transition = 'transform 0.5s ease';
-        card.style.transform = `perspective(1000px) rotateY(0deg) rotateX(0deg) translateY(0)`;
-    });
-
-    // 2. Input Focus "Snap" Effect
-    // Adds a tiny physical bump when they tap an input box
-    const inputs = document.querySelectorAll('.large-input');
-    inputs.forEach(input => {
-        input.addEventListener('focus', () => {
-            card.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-            card.style.transform = `perspective(1000px) scale(1.02)`;
-        });
-        
-        input.addEventListener('blur', () => {
-            card.style.transform = `perspective(1000px) scale(1)`;
-        });
-    });
-});
-
-// 3. Upgraded Execution Button with Tech UI feel
+//   Button with Tech UI feel
 async function executeLogin() {
     const btn = document.getElementById('loginBtn');
     const btnText = document.getElementById('btn-text');
