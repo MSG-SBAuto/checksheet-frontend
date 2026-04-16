@@ -1,0 +1,15 @@
+{
+  "name": "Final Inspection",
+  "short_name": "Checksheet",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "checksheet.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
