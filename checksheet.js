@@ -303,9 +303,37 @@ async function submitChecksheet() {
             const data = await response.json();
             alert(`Error: ${data.error}`);
         }
-    } catch (error) {
-        console.error("Submission Error:", error);
-        alert("Failed to connect to the server.");
+       } catch (error) {
+        //  Check if the device is offline
+        if (!navigator.onLine) {
+            console.log("Offline mode: Workbox has queued the request in IndexedDB.");
+            alert("Saved Offline! It will sync automatically when Wi-Fi returns.");
+
+            //  Trigger your normal success UI so the operator knows they are good to go
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' (Offline)'; 
+            
+            document.getElementById('last-submit-worker').innerText = appState.workerId;
+            document.getElementById('last-submit-model').innerText = modelId; 
+            document.getElementById('last-submit-time').innerText = timeString;
+            document.getElementById('latest-submission-banner').classList.remove('hidden');
+            
+            // Save to memory
+            localStorage.setItem('lastSubmissionText', JSON.stringify({ 
+                worker: appState.workerId, model: modelId, time: timeString 
+            }));
+            
+            // Reset form for the next glass
+            if (!localStorage.getItem('activeBatchModel')) {
+                document.getElementById('modelId').value = '';
+            }
+            setStatus('OK'); 
+
+        } else {
+            //  If they are online but it still failed, it's a real server error
+            console.error("Submission Error:", error);
+            alert("Failed to connect to the server.");
+        }
     }
 }
 
