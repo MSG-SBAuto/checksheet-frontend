@@ -228,7 +228,9 @@ input[type="text"], select {
 body.animated-bg {
     background-color: var(--bg-color);
     color: var(--text-primary);
-    min-height: 100vh;
+    min-height: 100dvh; 
+    display: flex; /
+    justify-content: center;
     align-items: center;
     overflow: hidden;
     position: relative;
