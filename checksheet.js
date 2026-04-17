@@ -36,11 +36,11 @@ function createGrid() {
 
 // The Model Database (Add more here as needed)
 const modelDatabase = {
-    "Perodua": ["D369", "X680", "X690", "KELESA X690", "D79B","D96T","D18B","D46T","D13B","D87D","D87A","D36D","D2GN"],
+    "Perodua": ["D27A (NEW ALZA)", "D27A (NEW ALZA 2)", "D74A NEW AXIA", "D74A NEX AXIA (CAM BRKT)", "D42L","D51A","P01A","D93L","D93L BRKT","D87D"],
+    "Proton": ["P2-13A (SAGA) AGR","P2-13A SAGA AGR B4SA", "P2-13A (NEW SAGA)", "P2-13A (NEW SAGA) ECIA", "P2-31A (NEW PERSONA) ECIA", "P380B (SS11)", "P380B (SS11) BRKT","P3-21A","P3-21A (AGR)" ],
     "Honda": ["MN", "UH", "2ZH","WQ","JAZZ","UA","2PX","CRV-KL","CRV-KL(S9A)","2WQ(2WL)","FREED","2PS","ODYSSEY","2ZK",
     "JAZZ 2009","2WS/2WR","2WF","2XP","2WH/WQ(TOAX)","2CT(AGR)","TEAA","TSAA(BRV)","T9AX(CITY)","TLAA","T2A(2.0)","T2A RSB(2.4)"],
-    "Proton": ["SAGA", "IJOO", "M24","IJOO WIRA","PERDANA PF41","PS8","GX","WRM44/41","SRM","N4 CAR(LMST)","GX(NO TOP SHADE)","TRM44",
-               "GX UV","BLM","EXORA","P321A","IRIZ","P3-12A","P620A(EXORA)"],
+    "Toyota": ["757W (Q70)","757W (Q80)","757W (680-A)","848W","848W ACOUSTIC"],
     "Isuzu": ["DMAX","ELF HIGHCAB","ELF","RT50","HIGHT NLR 85","ELF WIDE CAB 2006"],
     "Ford": ["TRANSIT(VE83)","COURIER UW64/65","RANGERUT2EF/2G","U268 EVEREST","UT5K(RANGER)","J97U / U268","CROWN VICTORIA","FIESTA","FORD RANGER 16"],
     "Mazda": ["ECONOVAN(VE193)","TRADER(H194)","FORD ESCAPE(ET06)"]
