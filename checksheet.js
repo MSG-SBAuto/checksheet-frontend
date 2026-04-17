@@ -17,7 +17,7 @@ window.onload = function() {
     // Actually draw the 12 invisible grid boxes!
     createGrid();
 };
-
+syncOfflineQueue();
 function createGrid() {
     const gridContainer = document.getElementById('glass-grid');
     gridContainer.innerHTML = ''; // Clear it out
@@ -306,7 +306,16 @@ async function submitChecksheet() {
        } catch (error) {
         //  Check if the device is offline
         if (!navigator.onLine) {
-            console.log("Offline mode: Workbox has queued the request in IndexedDB.");
+            console.log("Offline mode triggered. Saving to manual fallback queue.");
+            
+            // MANUALLY SAVE TO iOS QUEUE
+            let currentQueue = JSON.parse(localStorage.getItem('iosOfflineQueue')) || [];
+            currentQueue.push(payload); // 'payload' is the data you defined earlier in the function
+            localStorage.setItem('iosOfflineQueue', JSON.stringify(currentQueue));
+
+            // Force Apple WebKit to save to the hard drive instantly
+            localStorage.setItem('ios_flush_trigger', Date.now()); 
+
             alert("Saved Offline! It will sync automatically when Wi-Fi returns.");
 
             //  Trigger your normal success UI so the operator knows they are good to go
@@ -335,7 +344,6 @@ async function submitChecksheet() {
             alert("Failed to connect to the server.");
         }
     }
-}
 
 // SECURE LOGOUT 
 async function logoutWorker() {
@@ -355,3 +363,46 @@ async function logoutWorker() {
    // localStorage.removeItem('activeBatchModel'); // reset the set batch after logout
     window.location.href = 'index.html';
 }
+
+// iOS MANUAL OFFLINE SYNC ENGINE
+async function syncOfflineQueue() {
+    // 1. Check if there's anything waiting in the iPad's memory
+    let offlineQueue = JSON.parse(localStorage.getItem('iosOfflineQueue')) || [];
+    
+    if (offlineQueue.length === 0) return; // Nothing to sync
+
+    console.log(`[Sync] Attempting to upload ${offlineQueue.length} offline inspections...`);
+    let remainingQueue = [];
+
+    // 2. Try to send each saved inspection
+    for (let i = 0; i < offlineQueue.length; i++) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/inspections`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(offlineQueue[i])
+            });
+
+            if (!response.ok) {
+                // If the server rejected it (e.g., bad data), we keep it to try again later
+                remainingQueue.push(offlineQueue[i]);
+            } else {
+                console.log(`[Sync] Offline inspection ${i + 1} synced successfully!`);
+            }
+        } catch (error) {
+            // If it fails again (still no Wi-Fi), keep it in the queue
+            remainingQueue.push(offlineQueue[i]);
+        }
+    }
+
+    // 3. Update the memory with whatever is left over
+    localStorage.setItem('iosOfflineQueue', JSON.stringify(remainingQueue));
+    
+    if (remainingQueue.length === 0 && offlineQueue.length > 0) {
+        // Optional: Alert the user that their queued work was submitted!
+        // alert("All offline inspections have been synced to the database!");
+    }
+}
+
+// 4. Trigger the sync automatically when the iPad detects Wi-Fi returning
+window.addEventListener('online', syncOfflineQueue);
