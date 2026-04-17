@@ -13,11 +13,9 @@ const appState = {
 window.onload = function() {
     // Show the logged-in worker's ID in the top right badge
     document.getElementById('display-worker-id').innerText = appState.workerId;
-    
-    // Actually draw the 12 invisible grid boxes!
     createGrid();
+    syncOfflineQueue();
 };
-syncOfflineQueue();
 function createGrid() {
     const gridContainer = document.getElementById('glass-grid');
     gridContainer.innerHTML = ''; // Clear it out
