@@ -344,7 +344,7 @@ async function submitChecksheet() {
             alert("Failed to connect to the server.");
         }
     }
-
+}
 // SECURE LOGOUT 
 async function logoutWorker() {
     try {
